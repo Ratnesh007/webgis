@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>HERE Maps: Geocoding & Routing with Traffic</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- HERE Maps JS -->
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-core.js"></script>
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-service.js"></script>
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-ui.js"></script>
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-mapevents.js"></script>
+  <link rel="stylesheet" href="https://js.api.here.com/v3/3.1/mapsjs-ui.css" />
+
+  <style>
+    body, html {
+      margin: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+    #controls {
+      padding: 10px;
+      background: #f0f0f0;
+    }
+    input[type="text"] {
+      padding: 8px;
+      width: 250px;
+      margin-right: 10px;
+    }
+    button {
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    #mapContainer {
+      width: 100%;
+      height: 80%;
+    }
+    #routeInfo {
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="controls">
+  <input type="text" id="addressInput" placeholder="Enter address" value="Venus Atlantis, 100 Feet Anand Nagar Rd, Ahmedabad, Gujrat" />
+  <button onclick="geocodeAddress()">Geocode</button>
+  <input type="text" id="origin" placeholder="Origin (lat,lng)" readonly />
+  <input type="text" id="destination" placeholder="Destination (lat,lng)" readonly />
+  <button onclick="calculateRoute()">Show Route</button>
+  <button onclick="resetMap()">Reset</button>
+</div>
+
+<div id="mapContainer"></div>
+<div id="routeInfo">Click on the map to set origin and destination.</div>
+
+<script>
+  const apiKey = 'K7vXhvtSL73xIEF6hTj9eQjQl480k-qKhoEX3ZbC2rw'; // Unified API Key
+
+  const platform = new H.service.Platform({ apikey: apiKey });
+  const defaultLayers = platform.createDefaultLayers({ tileSize: 512, ppi: 320 });
+
+  const map = new H.Map(
+    document.getElementById('mapContainer'),
+    defaultLayers.vector.normal.map,
+    {
+      center: { lat: 23.01054732471091, lng: 72.511339249270767 },
+      zoom: 12,
+      pixelRatio: window.devicePixelRatio || 1
+    }
+  );
+
+  window.addEventListener('resize', () => map.getViewPort().resize());
+  const behavior = new H.mapevents.Behavior(new H.mapevents.MapEvents(map));
+  const ui = H.ui.UI.createDefault(map, defaultLayers);
+
+  // Enable traffic
+  const trafficLayer = defaultLayers.vector.traffic.map;
+  map.addLayer(trafficLayer);
+
+  let currentMarker = null;
+  let originMarker = null;
+  let destinationMarker = null;
+  let currentRouteLine = null;
+  let clickCount = 0;
+
+  map.addEventListener('tap', function (evt) {
+    const coord = map.screenToGeo(evt.currentPointer.viewportX, evt.currentPointer.viewportY);
+    const latLng = `${coord.lat.toFixed(6)},${coord.lng.toFixed(6)}`;
+
+    if (clickCount === 0) {
+      if (originMarker) map.removeObject(originMarker);
+      originMarker = new H.map.Marker(coord);
+      map.addObject(originMarker);
+      document.getElementById('origin').value = latLng;
+      clickCount++;
+    } else if (clickCount === 1) {
+      if (destinationMarker) map.removeObject(destinationMarker);
+      destinationMarker = new H.map.Marker(coord);
+      map.addObject(destinationMarker);
+      document.getElementById('destination').value = latLng;
+      clickCount = 0;
+    }
+  });
+
+  function geocodeAddress() {
+    const address = document.getElementById('addressInput').value;
+    const url = `https://geocode.search.hereapi.com/v1/geocode?apiKey=${apiKey}&q=${encodeURIComponent(address)}`;
+
+    document.getElementById('routeInfo').innerText = 'Fetching coordinates...';
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        if (data.items.length) {
+          const position = data.items[0].position;
+          const lat = position.lat, lng = position.lng;
+
+          if (currentMarker) map.removeObject(currentMarker);
+          currentMarker = new H.map.Marker({ lat, lng });
+          map.addObject(currentMarker);
+          map.setCenter({ lat, lng });
+
+          document.getElementById('routeInfo').innerText = `Latitude: ${lat}, Longitude: ${lng}`;
+        } else {
+          document.getElementById('routeInfo').innerText = 'No location found.';
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('routeInfo').innerText = 'Error fetching geocode data.';
+      });
+  }
+
+  function calculateRoute() {
+    const origin = document.getElementById('origin').value;
+    const destination = document.getElementById('destination').value;
+
+    if (!origin || !destination) {
+      alert('Please click on the map to set both origin and destination.');
+      return;
+    }
+
+    const router = platform.getRoutingService(null, 8);
+    const params = {
+      routingMode: 'fast',
+      transportMode: 'car',
+      origin: origin.trim(),
+      destination: destination.trim(),
+      return: 'polyline,summary,travelSummary',
+      traffic: 'enabled'
+    };
+
+    router.calculateRoute(params,
+      result => {
+        if (result.routes.length) {
+          const route = result.routes[0];
+          const shape = route.sections[0].polyline;
+          const linestring = H.geo.LineString.fromFlexiblePolyline(shape);
+
+          if (currentRouteLine) map.removeObject(currentRouteLine);
+          currentRouteLine = new H.map.Polyline(linestring, { style: { strokeColor: 'blue', lineWidth: 4 } });
+          map.addObject(currentRouteLine);
+          map.getViewModel().setLookAtData({ bounds: currentRouteLine.getBoundingBox() });
+
+          const summary = route.sections[0].summary;
+          document.getElementById('routeInfo').innerHTML =
+            `Distance: ${(summary.length / 1000).toFixed(2)} km<br>` +
+            `Duration (with traffic): ${Math.round(summary.duration / 60)} minutes`;
+        }
+      },
+      error => {
+        console.error(error);
+        alert('Error calculating route.');
+      }
+    );
+  }
+
+  function resetMap() {
+    if (originMarker) map.removeObject(originMarker);
+    if (destinationMarker) map.removeObject(destinationMarker);
+    if (currentRouteLine) map.removeObject(currentRouteLine);
+    if (currentMarker) map.removeObject(currentMarker);
+
+    originMarker = destinationMarker = currentRouteLine = currentMarker = null;
+    clickCount = 0;
+
+    document.getElementById('origin').value = '';
+    document.getElementById('destination').value = '';
+    document.getElementById('routeInfo').innerText = 'Reset complete.';
+  }
+
+  // Auto-run initial geocode
+  window.onload = geocodeAddress;
+</script>
+
+</body>
+</html>

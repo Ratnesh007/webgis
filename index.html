@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Multi-Map Viewer (Iframe)</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: sans-serif;
+    }
+    #app {
+      display: flex;
+      height: 100%;
+      overflow: hidden;
+    }
+    #sidebar {
+      width: 260px;
+      background: #2c3e50;
+      color: white;
+      padding: 10px;
+      transition: width 0.3s ease;
+    }
+    #sidebar.collapsed {
+      width: 60px;
+    }
+    #sidebar button {
+      width: 100%;
+      margin: 5px 0;
+      padding: 10px;
+      border: none;
+      background: #34495e;
+      color: white;
+      cursor: pointer;
+    }
+    #sidebar button:hover {
+      background: #1abc9c;
+    }
+    #map-container {
+      flex: 1;
+      position: relative;
+    }
+    iframe.map-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: none;
+    }
+    iframe.active {
+      display: block;
+    }
+    #layerControl {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      z-index: 1000;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <button onclick="toggleSidebar()">☰</button>
+    <button onclick="switchMap('leaflet')">Leaflet JS</button>
+    <button onclick="switchMap('openlayers')">OpenLayers JS</button>
+    <button onclick="switchMap('arcgis')">ArcGIS JS</button>
+    <button onclick="switchMap('cesium')">Cesium JS</button>
+	<button onclick="switchMap('here')">Here JS</button>
+  </div>
+
+  <div id="map-container">
+    <!-- <div id="layerControl"> -->
+      <!-- <label><input type="checkbox" id="layerA" checked onchange="toggleLayer('A')"> Layer A</label><br> -->
+      <!-- <label><input type="checkbox" id="layerB" checked onchange="toggleLayer('B')"> Layer B</label> -->
+    <!-- </div> -->
+
+    <iframe id="leafletMap" class="map-frame active" src="leaflet.html"></iframe>
+    <iframe id="openlayersMap" class="map-frame" src="openlayers.html"></iframe>
+    <iframe id="arcgisMap" class="map-frame" src="arcgis.html"></iframe>
+    <iframe id="cesiumMap" class="map-frame" src="cesium.html"></iframe>
+	<iframe id="hereMap" class="map-frame" src="here.html"></iframe>
+  </div>
+</div>
+
+<script>
+  function switchMap(name) {
+    document.querySelectorAll('.map-frame').forEach(frame => frame.classList.remove('active'));
+    document.getElementById(name + 'Map').classList.add('active');
+  }
+
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+  }
+
+  function toggleLayer(layer) {
+    const frame = document.getElementById('leafletMap').contentWindow;
+    frame.postMessage({ action: 'toggleLayer', layer }, '*');
+  }
+
+  window.addEventListener('message', (event) => {
+    // listen for responses if needed
+  });
+</script>
+</body>
+</html>

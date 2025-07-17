@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Leaflet Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html, body, #map {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+  const map = L.map('map').setView([20.5, 78.9], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+  const layerA = L.circle([20, 78], { radius: 50000 }).addTo(map);
+  const layerB = L.marker([21, 79]).addTo(map);
+
+  window.addEventListener('message', (event) => {
+    if (event.data.action === 'toggleLayer') {
+      if (event.data.layer === 'A') {
+        layerA.setStyle({ opacity: layerA.options.opacity === 0 ? 1 : 0 });
+      }
+      if (event.data.layer === 'B') {
+        layerB.setOpacity(layerB.options.opacity === 0 ? 1 : 0);
+      }
+    }
+  });
+</script>
+</body>
+</html>

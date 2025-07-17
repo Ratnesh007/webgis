@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cesium Digital Twin with Async Terrain</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cesium/1.131.0/Cesium.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cesium/1.131.0/Widgets/widgets.min.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+
+  <script>
+    // ✅ Your Cesium Ion access token
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4YmE1ZWNkYi01MjkyLTRhMzctOTU4ZC1jMzNjNDk5YThlM2EiLCJpZCI6Nzg3ODUsImlhdCI6MTcyNjgxMTgwMn0.sI7S0q6JRU6fwVrkosnJosTiz83Klm__ZJcJ2jTvw1k';
+
+    // ✅ Load World Terrain asynchronously
+    Cesium.CesiumTerrainProvider.fromIonAssetId(1)
+      .then(terrainProvider => {
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+          terrainProvider: terrainProvider
+        });
+        // ✅ Set default camera view to Ahmedabad
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(72.5714, 23.0225, 2000.0)  // [lon, lat, height]
+        });
+        // ✅ Load Digital Twin (New York City Photogrammetry)
+        Cesium.Cesium3DTileset.fromIonAssetId(2275207)
+          .then(tileset => {
+            viewer.scene.primitives.add(tileset);
+            //viewer.flyTo(tileset);
+          })
+          .catch(error => {
+            console.error('❌ Failed to load 3D Tileset:', error);
+          });
+      })
+      .catch(error => {
+        console.error('❌ Failed to load terrain provider:', error);
+      });
+  </script>
+</body>
+</html>
