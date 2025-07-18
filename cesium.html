@@ -1,49 +1,198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Cesium Digital Twin with Async Terrain</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cesium/1.131.0/Cesium.js"></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/cesium/1.131.0/Widgets/widgets.min.css" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <title>CesiumJS WMS Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.118/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.118/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
   <style>
     html, body, #cesiumContainer {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
+      width: 100%; height: 100%; margin: 0; padding: 0;
+    }
+    #sidebar {
+      position: absolute; top: 10px; right: 10px;
+      width: 320px; max-height: 90%; overflow: auto;
+      background: white; border: 1px solid #ccc;
+      padding: 10px; z-index: 10;
+    }
+    #toggleSidebar {
+      position: absolute; top: 10px; right: 340px;
+      z-index: 11; background: #007bff; color: white;
+      border: none; padding: 5px 10px; cursor: pointer;
+    }
+    .layer-toggle { margin-bottom: 5px; }
+    .layer-control-btn {
+      margin-left: 5px; padding: 2px 5px;
+      font-size: 0.8em; cursor: pointer;
+      border: 1px solid #007bff; background: white;
+      color: #007bff; border-radius: 3px;
+    }
+    .layer-control-btn:hover {
+      background: #007bff; color: white;
+    }
+    #legendContainer img {
+      margin-top: 5px; max-width: 100%; border: 1px solid #ccc;
     }
   </style>
 </head>
 <body>
+
+  <button id="toggleSidebar">☰ Layers</button>
+  <div id="sidebar">
+    <strong>Built-in Layers</strong>
+    <div class="layer-toggle"><input type="checkbox" id="layerA" checked> <label for="layerA">Circle (20,78)</label></div>
+    <div class="layer-toggle"><input type="checkbox" id="layerB" checked> <label for="layerB">Marker (21,79)</label></div>
+
+    <div class="section" style="margin-top:10px;">
+      <strong>WMS Service</strong><br>
+      <input type="text" id="wmsUrl" placeholder="WMS GetCapabilities URL" style="width: 100%; margin-top:5px;" />
+      <button id="btnFetch" style="margin-top:5px;">Fetch Layers</button>
+      <select id="selWms" disabled style="width:100%; margin-top:5px;"></select>
+      <button id="btnAdd" disabled style="width:100%; margin-top:5px;">Add Selected WMS Layer</button>
+    </div>
+
+    <div id="dynToggles" class="section"><strong>Added WMS Layers</strong></div>
+    <div id="legendContainer" class="section"><strong>Legends</strong></div>
+  </div>
+
   <div id="cesiumContainer"></div>
 
   <script>
-    // ✅ Your Cesium Ion access token
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4YmE1ZWNkYi01MjkyLTRhMzctOTU4ZC1jMzNjNDk5YThlM2EiLCJpZCI6Nzg3ODUsImlhdCI6MTcyNjgxMTgwMn0.sI7S0q6JRU6fwVrkosnJosTiz83Klm__ZJcJ2jTvw1k';
 
-    // ✅ Load World Terrain asynchronously
-    Cesium.CesiumTerrainProvider.fromIonAssetId(1)
-      .then(terrainProvider => {
-        const viewer = new Cesium.Viewer('cesiumContainer', {
-          terrainProvider: terrainProvider
-        });
-        // ✅ Set default camera view to Ahmedabad
-        viewer.camera.setView({
-          destination: Cesium.Cartesian3.fromDegrees(72.5714, 23.0225, 2000.0)  // [lon, lat, height]
-        });
-        // ✅ Load Digital Twin (New York City Photogrammetry)
-        Cesium.Cesium3DTileset.fromIonAssetId(2275207)
-          .then(tileset => {
-            viewer.scene.primitives.add(tileset);
-            //viewer.flyTo(tileset);
-          })
-          .catch(error => {
-            console.error('❌ Failed to load 3D Tileset:', error);
-          });
-      })
-      .catch(error => {
-        console.error('❌ Failed to load terrain provider:', error);
+    let viewer;
+    let dynamicLayers = {};
+    let legends = {};
+    let baseWmsUrl = "";
+
+    // Initialize viewer
+    Cesium.CesiumTerrainProvider.fromIonAssetId(1).then(terrain => {
+      viewer = new Cesium.Viewer('cesiumContainer', {
+        terrainProvider: terrain
       });
+
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(72.5714, 23.0225, 2000000.0)
+      });
+
+      // Built-in circle
+      const circle = viewer.entities.add({
+        name: 'Circle',
+        position: Cesium.Cartesian3.fromDegrees(78, 20),
+        ellipse: {
+          semiMinorAxis: 50000,
+          semiMajorAxis: 50000,
+          material: Cesium.Color.RED.withAlpha(0.5)
+        }
+      });
+
+      const marker = viewer.entities.add({
+        name: 'Marker',
+        position: Cesium.Cartesian3.fromDegrees(79, 21),
+        billboard: {
+          image: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/RedDot.svg',
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+        }
+      });
+
+      document.getElementById('layerA').onchange = e => circle.show = e.target.checked;
+      document.getElementById('layerB').onchange = e => marker.show = e.target.checked;
+    });
+
+    document.getElementById('toggleSidebar').onclick = () => {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+    };
+
+    // Fetch WMS GetCapabilities
+    document.getElementById('btnFetch').onclick = async () => {
+      const inputUrl = document.getElementById('wmsUrl').value.trim();
+      if (!inputUrl) return alert('Please enter a WMS GetCapabilities URL.');
+
+      const fetchUrl = inputUrl.includes('GetCapabilities') ? inputUrl :
+        inputUrl + (inputUrl.includes('?') ? '&' : '?') + 'service=WMS&request=GetCapabilities&version=1.3.0';
+
+      try {
+        const response = await fetch(fetchUrl);
+        const xml = await response.text();
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+
+        const layerElements = [...doc.querySelectorAll('Layer > Layer > Name')];
+        if (layerElements.length === 0) throw new Error("No layers found.");
+
+        const sel = document.getElementById('selWms');
+        sel.innerHTML = '<option value="">-- Select a Layer --</option>';
+        layerElements.forEach(el => {
+          const name = el.textContent;
+          sel.add(new Option(name, name));
+        });
+
+        sel.disabled = false;
+        document.getElementById('btnAdd').disabled = true;
+
+        sel.onchange = () => {
+          document.getElementById('btnAdd').disabled = !sel.value;
+        };
+
+        baseWmsUrl = inputUrl.split('?')[0];
+        alert(`${layerElements.length} layers found.`);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    };
+
+    // Add selected WMS layer
+    document.getElementById('btnAdd').onclick = () => {
+      const layerName = document.getElementById('selWms').value;
+      const key = `WMS:${layerName}`;
+      if (dynamicLayers[key]) return alert('Layer already added.');
+
+      const imageryProvider = new Cesium.WebMapServiceImageryProvider({
+        url: baseWmsUrl,
+        layers: layerName,
+        parameters: {
+          transparent: 'true',
+          format: 'image/png',
+          service: 'WMS',
+          version: '1.3.0',
+          srs: 'EPSG:4326'
+		 
+        }
+      });
+
+      const layer = viewer.imageryLayers.addImageryProvider(imageryProvider);
+      dynamicLayers[key] = layer;
+
+      // Toggle UI
+      const div = document.createElement('div');
+      div.className = 'layer-toggle';
+      div.innerHTML = `
+        <input type="checkbox" id="chk${key}" checked>
+        <label for="chk${key}">${key}</label>
+        <button class="layer-control-btn" title="Zoom to Layer">🔍</button>
+        <button class="layer-control-btn" title="Remove Layer">✖</button>
+      `;
+      document.getElementById('dynToggles').appendChild(div);
+
+      document.getElementById(`chk${key}`).onchange = e => layer.show = e.target.checked;
+
+      div.querySelector(`[title="Remove Layer"]`).onclick = () => {
+        viewer.imageryLayers.remove(layer);
+        div.remove();
+        if (legends[key]) legends[key].remove();
+        delete dynamicLayers[key];
+        delete legends[key];
+      };
+      div.querySelector(`[title="Zoom to Layer"]`).onclick = () => viewer.camera.flyHome();
+
+      // Legend
+      const legend = document.createElement('img');
+      legend.src = `${baseWmsUrl}?service=WMS&request=GetLegendGraphic&version=1.0.0&format=image/png&layer=${layerName}`;
+      const legDiv = document.createElement('div');
+      legDiv.appendChild(legend);
+      document.getElementById('legendContainer').appendChild(legDiv);
+      legends[key] = legDiv;
+    };
   </script>
 </body>
 </html>

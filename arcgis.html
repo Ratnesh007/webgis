@@ -2,27 +2,308 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>ArcGIS Map</title>
-  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
-  <script src="https://js.arcgis.com/4.30/"></script>
+  <title>ArcGIS JS Map with WMS Layers, Legends & Identify</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.33/"></script>
   <style>
     html, body, #viewDiv {
-      margin: 0;
-      height: 100%;
+      height: 100%; width: 100%; margin: 0; padding: 0;
     }
+    #sidebar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 320px;
+      max-height: 90%;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      transition: transform .3s ease;
+      z-index: 1000;
+    }
+    #sidebar.collapsed {transform: translateX(100%);}
+    #toggleSidebar {
+      position: absolute;
+      top: 10px;
+      right: 340px;
+      z-index: 1001;
+    }
+    .layer-toggle, .section {margin-bottom: 10px;}
+    #wmsLegendContainer img {
+      margin-top: 5px;
+      display: block;
+      max-width: 100%;
+      border: 1px solid #ccc;
+    }
+    .layer-control-btn {
+      margin-left: 5px;
+      padding: 2px 5px;
+      font-size: 0.8em;
+      cursor: pointer;
+      border: 1px solid #007bff;
+      background: white;
+      color: #007bff;
+      border-radius: 3px;
+    }
+    .layer-control-btn:hover { background: #007bff; color: white; }
+    #sidebar hr { margin: 10px 0; }
+    #sidebar hr + strong { display: block; margin-top: 10px;}
   </style>
 </head>
 <body>
+<button id="toggleSidebar">☰ Layers</button>
+<div id="sidebar" class="collapsed">
+  <strong>Built‑in Layers</strong>
+  <div class="layer-toggle">
+    <input type="checkbox" id="layerA" checked><label for="layerA">Layer A (Circle)</label>
+  </div>
+  <div class="layer-toggle">
+    <input type="checkbox" id="layerB" checked><label for="layerB">Layer B (Marker)</label>
+  </div>
+
+  <div class="section">
+    <strong>WMS Service</strong><br>
+    <input type="text" id="wmsCapabilitiesUrl" placeholder="WMS GetCapabilities URL" style="width:100%; margin-bottom:5px;" />
+    <button id="fetchWMS">Fetch Layers</button><br>
+    <select id="wmsLayerSelect" disabled style="width:100%; margin-top:5px;"></select>
+    <button id="addFromSelect" disabled style="width:100%; margin-top:5px;">Add Selected WMS Layer</button>
+  </div>
+
+  <div id="dynamicLayerToggles" class="section">
+    <strong>Dynamic WMS Layers</strong>
+  </div>
+  <div id="wmsLegends" class="section">
+    <strong>WMS Legends</strong>
+    <div id="wmsLegendContainer"></div>
+  </div>
+  <hr>
+  <strong>Legend</strong>
+  <div style="margin-top:5px;">
+    <div><span style="background:red; width:12px; height:12px; display:inline-block; margin-right:5px;"></span>Layer A (Circle)</div>
+    <div><span style="background:blue; width:12px; height:12px; display:inline-block; margin-right:5px;"></span>Layer B (Marker)</div>
+  </div>
+</div>
+
 <div id="viewDiv"></div>
+
 <script>
-  require(["esri/Map", "esri/views/MapView"], function(Map, MapView) {
-    const map = new Map({ basemap: "topo-vector" });
-    const view = new MapView({
-      container: "viewDiv",
-      map: map,
-      center: [78.9, 20.5],
-      zoom: 5
+  require([
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/Graphic",
+    "esri/layers/WMSLayer",
+    "esri/layers/FeatureLayer",
+    "esri/widgets/Legend",
+    "esri/widgets/Popup",
+    "esri/geometry/Extent"
+  ], function(Map, MapView, Graphic, WMSLayer, FeatureLayer, Legend, Popup, Extent) {
+
+    const map = new Map({ basemap: "streets-navigation-vector" });
+    const view = new MapView({ container: "viewDiv", map, center: [78.9, 20.5], zoom: 4 });
+    const graphicsLayer = view.graphics;
+
+    // Built‑in features
+    const circleGraphic = new Graphic({
+      geometry: { type: "point", longitude: 78, latitude: 20 },
+      symbol: { type: "simple-marker", style: "circle", color: "red", size: "24px", outline: { width: 1, color: "darkred" } }
     });
+    const markerGraphic = new Graphic({
+      geometry: { type: "point", longitude: 79, latitude: 21 },
+      symbol: { type: "simple-marker", style: "square", color: "blue", size: "12px", outline: { width: 1, color: "navy" } }
+    });
+    graphicsLayer.addMany([circleGraphic, markerGraphic]);
+
+    document.getElementById("layerA").addEventListener("change", e => {
+      e.target.checked ? graphicsLayer.add(circleGraphic) : graphicsLayer.remove(circleGraphic);
+    });
+    document.getElementById("layerB").addEventListener("change", e => {
+      e.target.checked ? graphicsLayer.add(markerGraphic) : graphicsLayer.remove(markerGraphic);
+    });
+
+    document.getElementById("toggleSidebar").addEventListener("click", () => {
+      document.getElementById("sidebar").classList.toggle("collapsed");
+    });
+
+    const fetchedWMS = {};
+    const dynamicLayers = {};
+
+    document.getElementById("fetchWMS").onclick = async () => {
+      const url = document.getElementById("wmsCapabilitiesUrl").value.trim();
+      if (!url) return alert("Enter WMS GetCapabilities URL");
+
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(resp.status);
+        const xml = await resp.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xml, "application/xml");
+        if (doc.querySelector("parsererror")) throw new Error("Invalid XML");
+
+        const layers = [];
+        doc.querySelectorAll("Layer Name").forEach(n => {
+          const name = n.textContent;
+          const layerNode = n.parentNode;
+          let bboxNode = layerNode.querySelector("LatLonBoundingBox, EX_GeographicBoundingBox");
+          let bbox = null;
+          if (bboxNode) {
+            bbox = bboxNode.tagName === "LatLonBoundingBox"
+              ? [
+                  [parseFloat(bboxNode.getAttribute("miny")), parseFloat(bboxNode.getAttribute("minx"))],  // [south, west]
+                  [parseFloat(bboxNode.getAttribute("maxy")), parseFloat(bboxNode.getAttribute("maxx"))]   // [north, east]
+                ]
+              : [
+                  [parseFloat(bboxNode.querySelector("southBoundLatitude").textContent), parseFloat(bboxNode.querySelector("westBoundLongitude").textContent)],
+                  [parseFloat(bboxNode.querySelector("northBoundLatitude").textContent), parseFloat(bboxNode.querySelector("eastBoundLongitude").textContent)]
+                ];
+          }
+          layers.push({ name, bbox });
+        });
+
+        if (!layers.length) throw new Error("No layers found");
+        const sel = document.getElementById("wmsLayerSelect");
+        sel.innerHTML = `<option value="">-- select layer --</option>`;
+        layers.forEach(l => sel.add(new Option(l.name, l.name)));
+        sel.disabled = false;
+        fetchedWMS.url = url;
+        fetchedWMS.layers = layers.reduce((o, l) => (o[l.name] = l, o), {});
+        document.getElementById("addFromSelect").disabled = true;
+        sel.onchange = () => document.getElementById("addFromSelect").disabled = !sel.value;
+        alert(`${layers.length} layers found.`);
+      } catch (err) {
+        console.error(err);
+        alert("Fetch error: " + err.message);
+      }
+    };
+
+    document.getElementById("addFromSelect").onclick = () => {
+      const name = document.getElementById("wmsLayerSelect").value;
+      if (!name) return;
+      const key = `WMS:${name}`;
+      if (dynamicLayers[key]) return alert("Layer already added");
+
+      const wms = new WMSLayer({ url: fetchedWMS.url, sublayers: [{ name: name }] });
+      map.add(wms);
+      dynamicLayers[key] = wms;
+
+      // Add toggle UI
+      const c = document.createElement("div");
+      c.className = "layer-toggle";
+      const id = `toggle-${key}`;
+      c.innerHTML = `
+        <input type="checkbox" id="${id}" checked>
+        <label for="${id}">${key}</label>
+        <button class="layer-control-btn" title="Zoom to Layer">🔍</button>
+        <button class="layer-control-btn" title="Remove Layer">✖</button>
+      `;
+      document.getElementById("dynamicLayerToggles").append(c);
+      document.getElementById(id).addEventListener("change", e => {
+        e.target.checked ? map.add(wms) : map.remove(wms);
+      });
+
+      c.querySelector("[title='Zoom to Layer']").addEventListener("click", () => {
+        const b = fetchedWMS.layers[name].bbox;
+        if (b) {
+          const extent = new Extent({
+            xmin: b[0][1], // west
+            ymin: b[0][0], // south
+            xmax: b[1][1], // east
+            ymax: b[1][0], // north
+            spatialReference: { wkid: 4326 }
+          });
+          view.goTo(extent);
+        } else {
+          view.goTo(view.map.fullExtent);
+        }
+      });
+
+      c.querySelector("[title='Remove Layer']").addEventListener("click", () => {
+        map.remove(wms);
+        delete dynamicLayers[key];
+        c.remove();
+        document.getElementById(`legend-${key}`)?.remove();
+      });
+
+      // Add legend image
+      const legendContainer = document.getElementById("wmsLegendContainer");
+      const div = document.createElement("div");
+      div.id = `legend-${key}`;
+      div.style.marginBottom = "10px";
+      const img = document.createElement("img");
+      img.src = `${fetchedWMS.url.split("?")[0]}?service=WMS&version=1.1.1&request=GetLegendGraphic&format=image/png&layer=${name}`;
+      div.innerHTML = `<div><strong>${name}</strong></div>`;
+      div.append(img);
+      legendContainer.append(div);
+    };
+
+    // Identify feature(s) on click
+<!-- view.on("click", async event => { -->
+  <!-- const visibleWMSLayers = Object.values(dynamicLayers).filter(layer => map.findLayerById(layer.id)); -->
+  <!-- if (!visibleWMSLayers.length) { -->
+    <!-- alert("No active WMS layers."); -->
+    <!-- return; -->
+  <!-- } -->
+
+  <!-- const screenPoint = view.toScreen(event.mapPoint); -->
+  <!-- const mapExtent = view.extent; -->
+
+  <!-- const bbox = [ -->
+    <!-- mapExtent.xmin, -->
+    <!-- mapExtent.ymin, -->
+    <!-- mapExtent.xmax, -->
+    <!-- mapExtent.ymax -->
+  <!-- ].join(','); -->
+
+  <!-- const width = view.width; -->
+  <!-- const height = view.height; -->
+
+  <!-- let resultsHTML = ""; -->
+
+  <!-- for (const layer of visibleWMSLayers) { -->
+    <!-- const sublayerName = layer.sublayers.items[0].name; -->
+    <!-- const baseUrl = layer.url.split('?')[0]; -->
+
+    <!-- const queryUrl = `${baseUrl}?` + -->
+      <!-- `SERVICE=WMS&` + -->
+      <!-- `VERSION=1.1.1&` + -->
+      <!-- `REQUEST=GetFeatureInfo&` + -->
+      <!-- `LAYERS=${sublayerName}&` + -->
+      <!-- `QUERY_LAYERS=${sublayerName}&` + -->
+      <!-- `STYLES=&` + -->
+      <!-- `BBOX=${bbox}&` + -->
+      <!-- `FEATURE_COUNT=5&` + -->
+      <!-- `HEIGHT=${height}&` + -->
+      <!-- `WIDTH=${width}&` + -->
+      <!-- `INFO_FORMAT=application/json&` + -->
+      <!-- `SRS=EPSG:4326&` + -->
+      <!-- `X=${Math.floor(screenPoint.x)}&` + -->
+      <!-- `Y=${Math.floor(screenPoint.y)}`; -->
+
+    <!-- try { -->
+      <!-- const response = await fetch(queryUrl); -->
+      <!-- if (!response.ok) throw new Error("Request failed"); -->
+      <!-- const json = await response.json(); -->
+
+      <!-- if (json.features && json.features.length > 0) { -->
+        <!-- resultsHTML += `<h4>${sublayerName}</h4><pre>${JSON.stringify(json.features, null, 2)}</pre><hr>`; -->
+      <!-- } -->
+    <!-- } catch (err) { -->
+      <!-- console.warn(`FeatureInfo failed for ${sublayerName}`, err); -->
+    <!-- } -->
+  <!-- } -->
+
+  <!-- if (resultsHTML) { -->
+    <!-- view.popup.open({ -->
+      <!-- location: event.mapPoint, -->
+      <!-- content: resultsHTML -->
+    <!-- }); -->
+  <!-- } else { -->
+    <!-- alert("No features identified."); -->
+  <!-- } -->
+<!-- }); -->
+
+
   });
 </script>
 </body>

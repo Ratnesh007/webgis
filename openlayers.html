@@ -1,36 +1,264 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>OpenLayers CDN Example</title>
-	<script src="https://cdn.jsdelivr.net/npm/ol@v10.6.0/dist/ol.js"></script>
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.6.0/ol.css">
-
-    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@latest/ol.css" type="text/css"> -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>OpenLayers v10.6.0 WMS + Identify + Legend + Layers</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.6.0/ol.css">
   <style>
-    html, body, #map {
-      margin: 0;
-      padding: 0;
-      height: 100%;
+    html, body { margin:0; padding:0; height:100%; }
+    #map { width:100%; height:100%; }
+    #sidebar {
+      position:absolute; top:10px; right:10px;
+      width:320px; max-height:90%; overflow:auto;
+      background:#fff; border:1px solid #ccc;
+      padding:10px; box-shadow:0 2px 5px rgba(0,0,0,0.3);
+      transition: transform .3s ease; z-index:1000;
+    }
+    #sidebar.collapsed { transform: translateX(100%); }
+    #toggleSidebar {
+      position:absolute; top:10px; right:340px;
+      background:#007bff; color:#fff; border:none;
+      padding:6px 10px; cursor:pointer; z-index:1001;
+    }
+    .layer-toggle, .section { margin-bottom:10px; }
+    #wmsLegendContainer img { margin-top:5px; max-width:100%; border:1px solid #ccc; }
+    .layer-control-btn {
+      margin-left:5px; padding:2px 5px; font-size:0.8em;
+      cursor:pointer; border:1px solid #007bff;
+      background:white; color:#007bff; border-radius:3px;
+    }
+    .layer-control-btn:hover { background:#007bff; color:white; }
+    .ol-popup {
+      position:absolute; background:white; padding:10px;
+      border:1px solid #ccc; min-width:200px;
+      box-shadow:0 2px 5px rgba(0,0,0,0.3); font-size:12px;
+      z-index:1002;
+    }
+    .ol-popup:after {
+      content:""; position:absolute; bottom:-10px; left:10px;
+      border-width:10px 10px 0; border-style:solid;
+      border-color:#fff transparent; display:block; width:0;
     }
   </style>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/ol@latest/dist/ol.js"></script> -->
-  </head>
-  <body>
-    <div id="map" class="map"></div>
-    <script type="text/javascript">
-      var map = new ol.Map({
-        target: 'map',
-        layers: [
-          new ol.layer.Tile({
-            source: new ol.source.OSM()
-          })
-        ],
-        view: new ol.View({
-          center: ol.proj.fromLonLat([72.5714, 23.0225]),
-          zoom: 12
-        })
-      });
-    </script>
-  </body>
+</head>
+<body>
+
+<button id="toggleSidebar">☰ Layers</button>
+
+<div id="sidebar" class="collapsed">
+  <strong>Built-in Layers</strong>
+  <div class="layer-toggle">
+    <input type="checkbox" id="layerA" checked>
+    <label for="layerA">Layer A (Circle)</label>
+  </div>
+  <div class="layer-toggle">
+    <input type="checkbox" id="layerB" checked>
+    <label for="layerB">Layer B (Marker)</label>
+  </div>
+
+  <div class="section">
+    <strong>WMS Service</strong><br>
+    <input type="text" id="wmsCapabilitiesUrl" placeholder="WMS GetCapabilities URL" style="width:100%; margin-bottom:5px;" />
+    <button onclick="fetchWMSLayers()">Fetch Layers</button>
+    <select id="wmsLayerSelect" disabled style="width:100%; margin-top:5px;"></select>
+    <button id="addFromSelect" onclick="addWMSFromSelect()" disabled style="width:100%; margin-top:5px;">Add Selected WMS</button>
+  </div>
+
+  <div id="dynamicLayerToggles" class="section">
+    <strong>Dynamic WMS Layers</strong>
+  </div>
+
+  <div id="wmsLegends" class="section">
+    <strong>WMS Legends</strong>
+    <div id="wmsLegendContainer"></div>
+  </div>
+
+  <hr>
+  <strong>Legend</strong>
+  <div style="margin-top:5px;">
+    <div><span style="background:red; width:12px; height:12px; display:inline-block; margin-right:5px;"></span>Layer A (Circle)</div>
+    <div><span style="background:blue; width:12px; height:12px; display:inline-block; margin-right:5px;"></span>Layer B (Marker)</div>
+  </div>
+</div>
+
+<div id="map"></div>
+<div id="popup" class="ol-popup" style="display:none"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/ol@v10.6.0/dist/ol.js"></script>
+<script>
+  const {
+    Map, View, Overlay,
+    layer: { Tile: TileLayer, Vector: VectorLayer },
+    source: { OSM, Vector: VectorSource, TileWMS },
+    geom: { Circle: CircleGeom, Point },
+    Feature,
+    style: { Style, Fill, Stroke, Circle: CircleStyle },
+    proj: { fromLonLat, transformExtent }
+  } = ol;
+
+  const popupEl = document.getElementById('popup');
+  const overlay = new Overlay({
+    element: popupEl,
+    positioning: 'bottom-center',
+    autoPan: true,
+    autoPanAnimation: { duration: 250 }
+  });
+
+  const baseLayer = new TileLayer({ source: new OSM() });
+  const layerA = new VectorLayer({
+    source: new VectorSource({ features: [ new Feature({ geometry: new CircleGeom(fromLonLat([78,20]),50000) }) ] }),
+    style: new Style({ stroke: new Stroke({color:'red', width:2}), fill: new Fill({color:'rgba(255,0,0,0.4)'}) })
+  });
+  const layerB = new VectorLayer({
+    source: new VectorSource({ features: [ new Feature({ geometry: new Point(fromLonLat([79,21])) }) ] }),
+    style: new Style({ image: new CircleStyle({radius:6, fill:new Fill({color:'blue'}), stroke:new Stroke({color:'white',width:2})}) })
+  });
+
+  const dynamicLayers = {}, dynamicLayerBounds = {}, dynamicLegends = {};
+  const map = new Map({
+    target: 'map',
+    layers: [baseLayer, layerA, layerB],
+    overlays: [overlay],
+    view: new View({ center: fromLonLat([78.9,20.5]), zoom: 4 })
+  });
+
+  document.getElementById('layerA').onchange = e => e.target.checked ? map.addLayer(layerA) : map.removeLayer(layerA);
+  document.getElementById('layerB').onchange = e => e.target.checked ? map.addLayer(layerB) : map.removeLayer(layerB);
+  document.getElementById('toggleSidebar').onclick = () => document.getElementById('sidebar').classList.toggle('collapsed');
+
+  async function fetchWMSLayers() {
+    const url = document.getElementById('wmsCapabilitiesUrl').value.trim();
+    if (!url) return alert('Enter GetCapabilities URL');
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const xml = new DOMParser().parseFromString(await resp.text(), 'application/xml');
+      if (xml.querySelector('parsererror')) throw new Error('XML parse error');
+
+      const top = xml.querySelector('Capability > Layer');
+      if (!top) throw new Error('No root Capability/Layer found');
+      const layers = [];
+      (function walk(el) {
+        const children = [...el.children].filter(c => c.tagName === 'Layer');
+        if (children.length === 0) {
+          const nm = el.querySelector('Name')?.textContent;
+          if (nm) {
+            let bbox = null;
+            const ll = el.querySelector('LatLonBoundingBox');
+            if (ll) {
+              bbox = [[+ll.getAttribute('minx'), +ll.getAttribute('miny')], [+ll.getAttribute('maxx'), +ll.getAttribute('maxy')]];
+            } else {
+              const ex = el.querySelector('EX_GeographicBoundingBox');
+              if (ex) {
+                bbox = [
+                  [+ex.querySelector('westBoundLongitude').textContent, +ex.querySelector('southBoundLatitude').textContent],
+                  [+ex.querySelector('eastBoundLongitude').textContent, +ex.querySelector('northBoundLatitude').textContent]
+                ];
+              }
+            }
+            layers.push({ name: nm, bbox });
+          }
+        } else children.forEach(walk);
+      })(top);
+
+      if (layers.length === 0) return alert('No layers found');
+      const sel = document.getElementById('wmsLayerSelect');
+      sel.innerHTML = '<option value="">-- select --</option>';
+      layers.forEach(l => sel.add(new Option(l.name, l.name)));
+      sel.disabled = false;
+
+      window.fetchedWMSLayers = layers.reduce((o,l)=>{ o[l.name]=l; return o; }, {});
+      const btn = document.getElementById('addFromSelect');
+      sel.onchange = () => btn.disabled = !sel.value;
+      btn.disabled = true;
+      alert(`${layers.length} layers found`);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  function addWMSFromSelect() {
+    const url = document.getElementById('wmsCapabilitiesUrl').value.trim();
+    const name = document.getElementById('wmsLayerSelect').value;
+    if (!url || !name) return;
+    const key = `WMS:${name}`;
+    if (dynamicLayers[key]) return alert('Already added.');
+
+    const base = url.split('?')[0];
+    const src = new TileWMS({ url: base, params: { LAYERS: name, FORMAT:'image/png', TRANSPARENT:true } });
+    const lyr = new TileLayer({ source: src });
+    map.addLayer(lyr);
+    dynamicLayers[key] = lyr;
+
+    const bb = window.fetchedWMSLayers[name]?.bbox;
+    if (bb) dynamicLayerBounds[key] = bb;
+
+    addDynamicToggle(key, lyr);
+    addWMSLegend(key, base, name);
+  }
+
+  function addDynamicToggle(key, lyr) {
+    const container = document.createElement('div');
+    container.className = 'layer-toggle';
+    const id = `toggle-${key}`;
+    container.innerHTML = `
+      <input type="checkbox" id="${id}" checked>
+      <label for="${id}" style="margin-right:5px;">${key}</label>
+      <button class="layer-control-btn" title="Zoom">🔍</button>
+      <button class="layer-control-btn" title="Remove">✖</button>`;
+    document.getElementById('dynamicLayerToggles').appendChild(container);
+
+    document.getElementById(id).onchange = e => e.target.checked ? map.addLayer(lyr) : map.removeLayer(lyr);
+    container.querySelector('[title="Zoom"]').onclick = () => {
+      const bb = dynamicLayerBounds[key];
+      if (bb) {
+        const extent = transformExtent([bb[0][0], bb[0][1], bb[1][0], bb[1][1]], 'EPSG:4326', map.getView().getProjection());
+        map.getView().fit(extent, { duration:500 });
+      } else alert('No bounding box.');
+    };
+    container.querySelector('[title="Remove"]').onclick = () => {
+      map.removeLayer(lyr);
+      delete dynamicLayers[key];
+      delete dynamicLayerBounds[key];
+      container.remove();
+      removeWMSLegend(key);
+    };
+  }
+
+  function addWMSLegend(key, base, name) {
+    const d = document.createElement('div');
+    d.id = `legend-${key}`;
+    d.innerHTML = `<strong>${name}</strong><br><img src="${base}?service=WMS&request=GetLegendGraphic&format=image/png&layer=${name}">`;
+    document.getElementById('wmsLegendContainer').appendChild(d);
+    dynamicLegends[key] = d;
+  }
+
+  function removeWMSLegend(key) {
+    const d = dynamicLegends[key];
+    if (d) { d.remove(); delete dynamicLegends[key]; }
+  }
+
+  map.on('singleclick', evt => {
+    const view = map.getView(), res = view.getResolution(), coord = evt.coordinate;
+    const visible = Object.entries(dynamicLayers).filter(([k,lyr]) => map.getLayers().getArray().includes(lyr)).map(([k])=>k);
+    if (!visible.length) return alert('No visible WMS layers.');
+    const ps = visible.map(key => {
+      const lyr = dynamicLayers[key], src = lyr.getSource();
+      const url = src.getFeatureInfoUrl(coord, res, view.getProjection(), { INFO_FORMAT:'text/plain', FEATURE_COUNT:5 });
+      return url && fetch(url).then(r => r.text()).then(txt => ({ key, txt }));
+    });
+    Promise.all(ps).then(arr => {
+      const out = arr.filter(r=>r && r.txt.trim()).map(r=>`<h4>${r.key}</h4><pre>${r.txt}</pre>`).join('<hr>');
+      if (out) {
+        popupEl.innerHTML = out;
+        overlay.setPosition(coord);
+        popupEl.style.display = 'block';
+      }
+    }).catch(console.error);
+  });
+
+  map.on('movestart', () => popupEl.style.display = 'none');
+</script>
+
+</body>
 </html>
