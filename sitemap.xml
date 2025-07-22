@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset 
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml"
+>
+
+  <!-- Homepage -->
+  <url>
+    <loc>https://rwebgis.vercel.app/</loc>
+    <lastmod>2025-07-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://rwebgis.vercel.app/preview.png</image:loc>
+      <image:caption>RWebGIS – Web-Based GIS Platform for 3D Mapping, Weather, and Satellite Data</image:caption>
+      <image:title>RWebGIS Homepage Preview</image:title>
+    </image:image>
+    <xhtml:link rel="alternate" hreflang="en" href="https://rwebgis.vercel.app/" />
+  </url>
+
+  <!-- 3D Terrain Map Page -->
+  <url>
+    <loc>https://rwebgis.vercel.app/terrain-map</loc>
+    <lastmod>2025-07-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://rwebgis.vercel.app/images/terrain-map.png</image:loc>
+      <image:caption>Interactive 3D Terrain Mapping using CesiumJS</image:caption>
+      <image:title>3D Terrain Map - RWebGIS</image:title>
+    </image:image>
+  </url>
+
+  <!-- Weather Layer Page -->
+  <url>
+    <loc>https://rwebgis.vercel.app/weather-layer</loc>
+    <lastmod>2025-07-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://rwebgis.vercel.app/images/weather-map.png</image:loc>
+      <image:caption>Live Weather Overlay with Satellite and Rain Data</image:caption>
+      <image:title>Weather Map Overlay - RWebGIS</image:title>
+    </image:image>
+  </url>
+
+  <!-- Satellite Viewer -->
+  <url>
+    <loc>https://rwebgis.vercel.app/satellite-viewer</loc>
+    <lastmod>2025-07-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://rwebgis.vercel.app/images/satellite-viewer.png</image:loc>
+      <image:caption>Satellite Imagery Viewer for Real-Time Mapping</image:caption>
+      <image:title>Satellite Viewer - RWebGIS</image:title>
+    </image:image>
+  </url>
+
+  <!-- Ahmedabad GIS Page -->
+  <url>
+    <loc>https://rwebgis.vercel.app/ahmedabad-gis</loc>
+    <lastmod>2025-07-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://rwebgis.vercel.app/images/ahmedabad-map.png</image:loc>
+      <image:caption>3D GIS Visualization of Ahmedabad City</image:caption>
+      <image:title>Ahmedabad GIS Viewer - RWebGIS</image:title>
+    </image:image>
+  </url>
+
+  <!-- Blog / Articles -->
+  <url>
+    <loc>https://rwebgis.vercel.app/blog</loc>
+    <lastmod>2025-07-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://rwebgis.vercel.app/images/blog.png</image:loc>
+      <image:caption>WebGIS Tutorials and Spatial Data Analysis Guides</image:caption>
+      <image:title>Blog and GIS Articles - RWebGIS</image:title>
+    </image:image>
+  </url>
+
+</urlset>
