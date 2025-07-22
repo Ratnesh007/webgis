@@ -1,9 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta name="description" content="RWebGIS is a powerful web-based GIS platform for geospatial analysis, interactive mapping, terrain visualization, and spatial data management, RWebGIS By Ratnesh Sharma">
+  <meta name="keywords" content="WebGIS, GIS platform, online GIS, web mapping, spatial data viewer, interactive map, geospatial web app, CesiumJS, Leaflet, OpenLayers, 3D terrain map, satellite imagery, remote sensing, digital twin GIS, weather map, topographic map, geospatial analytics, open source GIS, GIS dashboard, GIS India, mapping platform, real-time GIS, GeoJSON viewer, WMTS, WMS, shapefile viewer, map tile server, terrain visualization, RWebGIS By Ratnesh Sharma">
+  <meta name="robots" content="index, follow, RWebGIS By Ratnesh Sharma">
+  <meta name="author RWebGIS By Ratnesh Sharma" content="RWebGIS">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Multi-Map Viewer (Iframe)</title>
+  <title>RWebGIS By Ratnesh Sharma – Interactive Web-Based GIS for 3D Mapping & Terrain Visualization</title>
 
   <style>
     html, body {
@@ -53,17 +57,24 @@
     iframe.active {
       display: block;
     }
-    #layerControl {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      z-index: 1000;
+
+    /* Advertisement container */
+    #ad-container {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      z-index: 9999;
       background: white;
-      padding: 10px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      border: 1px solid #ccc;
+      padding: 5px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+      max-width: 180px;
     }
   </style>
+
+  <!-- Google AdSense script -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
 </head>
 <body>
 <div id="app">
@@ -73,21 +84,29 @@
     <button onclick="switchMap('openlayers')">OpenLayers JS</button>
     <button onclick="switchMap('arcgis')">ArcGIS JS</button>
     <button onclick="switchMap('cesium')">Cesium JS</button>
-	<button onclick="switchMap('here')">Here JS</button>
+    <button onclick="switchMap('here')">Here JS</button>
   </div>
 
   <div id="map-container">
-    <!-- <div id="layerControl"> -->
-      <!-- <label><input type="checkbox" id="layerA" checked onchange="toggleLayer('A')"> Layer A</label><br> -->
-      <!-- <label><input type="checkbox" id="layerB" checked onchange="toggleLayer('B')"> Layer B</label> -->
-    <!-- </div> -->
-
     <iframe id="leafletMap" class="map-frame active" src="leaflet.html"></iframe>
     <iframe id="openlayersMap" class="map-frame" src="openlayers.html"></iframe>
     <iframe id="arcgisMap" class="map-frame" src="arcgis.html"></iframe>
     <iframe id="cesiumMap" class="map-frame" src="cesium.html"></iframe>
-	<iframe id="hereMap" class="map-frame" src="here.html"></iframe>
+    <iframe id="hereMap" class="map-frame" src="here.html"></iframe>
   </div>
+</div>
+
+<!-- AdSense Ad Unit -->
+<div id="ad-container">
+  <ins class="adsbygoogle"
+       style="display:block"
+       data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+       data-ad-slot="YYYYYYYYYY"
+       data-ad-format="auto"
+       data-full-width-responsive="true"></ins>
+  <script>
+    (adsbygoogle = window.adsbygoogle || []).push({});
+  </script>
 </div>
 
 <script>
