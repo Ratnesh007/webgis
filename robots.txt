@@ -1,1 +1,2 @@
-Sitemap: https://rwebgis.vercel.app/sitemap.xml
+Sitemap: https://www.abrwiz.com/sitemap.xml
+
