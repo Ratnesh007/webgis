@@ -177,26 +177,10 @@
     <a href="https://www.abrwiz.com" target="_blank">https://www.abrwiz.com</a> <!-- Know me...... -->
 	</div>
 	
-	<div class="site-visitor"> <!-- visitor count code -->
-	<strong id="visitor-count">Visitor =>> &nbsp</strong><br>
-
-	<script>
-    // Unique namespace and key (safe characters only)
-    const namespace = 'abrwiz-com'; // CountAPI does not allow slashes or full URLs
-    const key = 'abrwiz-visitor-counter';
-
-    // Call CountAPI to increment and fetch the updated count
-    fetch(`https://api.countapi.xyz/hit/${namespace}/${key}`)
-      .then(response => response.json())
-      .then(data => {
-        document.getElementById('visitor-count').innerText = `Visitor #${data.value}`;
-      })
-      .catch(error => {
-        console.error("Visitor counter error:", error);
-        document.getElementById('visitor-count').innerText = 'Visitor count unavailable';
-      });
-	</script>
-	</div> <!-- visitior count code ... -->	
+	<div class="site-visitor">
+	<strong id="visitor-count">Visitor =>>&nbsp;</strong>
+	<img class="visitor-counter-img" src="https://hits.sh/Ratnesh007.github.io/webgis.svg?style=flat-square" alt="Visitor Counter">
+	</div>
 	
 	<!-- Dashboard Content End -->
   </div>
@@ -227,4 +211,5 @@
   <script src="/script_loader/script.js"></script> <!-- all map script -->
 </body>
 </html>
+
 
