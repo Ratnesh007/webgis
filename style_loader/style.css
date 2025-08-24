@@ -324,8 +324,14 @@ body.dark-mode .ad-box {
     }
     .site-visitor a:hover {
       text-decoration: underline;
-    } 								/* Map Source style ... */
+    } 								
 	
+	.visitor-counter-img {
+		width: 100px; /* Or any size you prefer */
+		height: auto; /* Maintain aspect ratio */
+	}                                          /* Map Source style ... */
+	
+
 
 
 
