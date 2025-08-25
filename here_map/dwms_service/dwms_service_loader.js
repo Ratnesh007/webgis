@@ -69,9 +69,9 @@ function loadHereWmsService() {
     }
   }
 
-  // Function to initialize HERE map
+  // Function to initialize HERE map //https://github.com/heremaps/maps-api-for-javascript-examples/commit/6a72b12fb915e3f6405257fd1ec5a94429176fb3
   function initHereMap() {
-    const platform = new H.service.Platform({ apikey: "YOUR_HERE_API_KEY" });  // Replace with your HERE API key
+    const platform = new H.service.Platform({ apikey: "mBN-cdOLveHULlFk0QXVX3aIfPyqQuKl41V6hUbqKMA" });  // Replace with your HERE API key
     const layers = platform.createDefaultLayers();
 
     map = new H.Map(
@@ -200,5 +200,6 @@ function loadHereWmsService() {
     });
   };
 }
+
 
 
