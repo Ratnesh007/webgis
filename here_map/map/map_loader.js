@@ -3,7 +3,8 @@ function loadHereMap() {
   content.innerHTML = `<h2 style="margin-top: 0px;margin-bottom: 0px;">HERE Map</h2><div id="hereMap" style="height: 600px;"></div>`;
 
   // Replace with your own HERE API key
-  const apiKey = "YOUR_HERE_API_KEY";
+  const apiKey = "mBN-cdOLveHULlFk0QXVX3aIfPyqQuKl41V6hUbqKMA";
+  ////https://github.com/heremaps/maps-api-for-javascript-examples/commit/6a72b12fb915e3f6405257fd1ec5a94429176fb3
 
   // Load HERE Maps JS if not already loaded
   if (typeof H !== 'undefined') {
@@ -46,8 +47,8 @@ function loadHereMap() {
       document.getElementById('hereMap'),
       layers.vector.normal.map,
       {
-        zoom: 3,
-        center: { lat: 20.5937, lng: 78.9629 }
+        zoom: 5,
+        center: { lat: 25.023188632878277, lng: 77.47422871664293 }
       }
     );
 
@@ -55,3 +56,4 @@ function loadHereMap() {
     const ui = H.ui.UI.createDefault(map, layers);
   }
 }
+
